@@ -1,36 +1,30 @@
 #![deny(warnings)]
 
-use std::net::SocketAddr;
+use tokio::fs::File;
 
-use hyper::server::conn::Http;
-use tokio::net::TcpListener;
+use tokio_util::codec::{BytesCodec, FramedRead};
 
-use hyper::service::service_fn;
-use hyper::{Body, Method, Request, Response, Result, StatusCode};
+use hyper::service::{make_service_fn, service_fn};
+use hyper::{Body, Method, Request, Response, Result, Server, StatusCode};
 
 static INDEX: &str = "examples/send_file_index.html";
 static NOTFOUND: &[u8] = b"Not Found";
 
 #[tokio::main]
-async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
+async fn main() {
     pretty_env_logger::init();
 
-    let addr: SocketAddr = "127.0.0.1:1337".parse().unwrap();
+    let addr = "127.0.0.1:1337".parse().unwrap();
 
-    let listener = TcpListener::bind(addr).await?;
+    let make_service =
+        make_service_fn(|_| async { Ok::<_, hyper::Error>(service_fn(response_examples)) });
+
+    let server = Server::bind(&addr).serve(make_service);
+
     println!("Listening on http://{}", addr);
 
-    loop {
-        let (stream, _) = listener.accept().await?;
-
-        tokio::task::spawn(async move {
-            if let Err(err) = Http::new()
-                .serve_connection(stream, service_fn(response_examples))
-                .await
-            {
-                println!("Failed to serve connection: {:?}", err);
-            }
-        });
+    if let Err(e) = server.await {
+        eprintln!("server error: {}", e);
     }
 }
 
@@ -54,8 +48,11 @@ fn not_found() -> Response<Body> {
 }
 
 async fn simple_file_send(filename: &str) -> Result<Response<Body>> {
-    if let Ok(contents) = tokio::fs::read(filename).await {
-        let body = contents.into();
+    // Serve a file by asynchronously reading it by chunks using tokio-util crate.
+
+    if let Ok(file) = File::open(filename).await {
+        let stream = FramedRead::new(file, BytesCodec::new());
+        let body = Body::wrap_stream(stream);
         return Ok(Response::new(body));
     }
 

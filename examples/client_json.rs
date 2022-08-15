@@ -1,10 +1,9 @@
 #![deny(warnings)]
 #![warn(rust_2018_idioms)]
 
-use hyper::Body;
-use hyper::{body::Buf, Request};
+use hyper::body::Buf;
+use hyper::Client;
 use serde::Deserialize;
-use tokio::net::TcpStream;
 
 // A simple type alias so as to DRY.
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
@@ -23,22 +22,10 @@ async fn main() -> Result<()> {
 }
 
 async fn fetch_json(url: hyper::Uri) -> Result<Vec<User>> {
-    let host = url.host().expect("uri has no host");
-    let port = url.port_u16().unwrap_or(80);
-    let addr = format!("{}:{}", host, port);
-
-    let stream = TcpStream::connect(addr).await?;
-
-    let (mut sender, conn) = hyper::client::conn::handshake(stream).await?;
-    tokio::task::spawn(async move {
-        if let Err(err) = conn.await {
-            println!("Connection failed: {:?}", err);
-        }
-    });
+    let client = Client::new();
 
     // Fetch the url...
-    let req = Request::builder().uri(url).body(Body::empty()).unwrap();
-    let res = sender.send_request(req).await?;
+    let res = client.get(url).await?;
 
     // asynchronously aggregate the chunks of the body
     let body = hyper::body::aggregate(res).await?;

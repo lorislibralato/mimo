@@ -3,15 +3,26 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
+#[cfg(all(feature = "server", any(feature = "http1", feature = "http2")))]
+use crate::body::Body;
 #[cfg(feature = "server")]
 use crate::body::HttpBody;
 #[cfg(all(feature = "http2", feature = "server"))]
 use crate::proto::h2::server::H2Stream;
 use crate::rt::Executor;
+#[cfg(all(feature = "server", any(feature = "http1", feature = "http2")))]
+use crate::server::server::{new_svc::NewSvcTask, Watcher};
+#[cfg(all(feature = "server", any(feature = "http1", feature = "http2")))]
+use crate::service::HttpService;
 
 #[cfg(feature = "server")]
 pub trait ConnStreamExec<F, B: HttpBody>: Clone {
     fn execute_h2stream(&mut self, fut: H2Stream<F, B>);
+}
+
+#[cfg(all(feature = "server", any(feature = "http1", feature = "http2")))]
+pub trait NewSvcExec<I, N, S: HttpService<Body>, E, W: Watcher<I, S, E>>: Clone {
+    fn execute_new_svc(&mut self, fut: NewSvcTask<I, N, S, E, W>);
 }
 
 pub(crate) type BoxSendFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
@@ -33,13 +44,13 @@ impl Exec {
     {
         match *self {
             Exec::Default => {
-                #[cfg(feature = "runtime")]
+                #[cfg(feature = "tcp")]
                 {
                     tokio::task::spawn(fut);
                 }
-
-                #[cfg(not(feature = "runtime"))]
+                #[cfg(not(feature = "tcp"))]
                 {
+                    // If no runtime, we need an executor!
                     panic!("executor must be set")
                 }
             }
@@ -67,6 +78,18 @@ where
     }
 }
 
+#[cfg(all(feature = "server", any(feature = "http1", feature = "http2")))]
+impl<I, N, S, E, W> NewSvcExec<I, N, S, E, W> for Exec
+where
+    NewSvcTask<I, N, S, E, W>: Future<Output = ()> + Send + 'static,
+    S: HttpService<Body>,
+    W: Watcher<I, S, E>,
+{
+    fn execute_new_svc(&mut self, fut: NewSvcTask<I, N, S, E, W>) {
+        self.execute(fut)
+    }
+}
+
 // ==== impl Executor =====
 
 #[cfg(feature = "server")]
@@ -77,6 +100,19 @@ where
     B: HttpBody,
 {
     fn execute_h2stream(&mut self, fut: H2Stream<F, B>) {
+        self.execute(fut)
+    }
+}
+
+#[cfg(all(feature = "server", any(feature = "http1", feature = "http2")))]
+impl<I, N, S, E, W> NewSvcExec<I, N, S, E, W> for E
+where
+    E: Executor<NewSvcTask<I, N, S, E, W>> + Clone,
+    NewSvcTask<I, N, S, E, W>: Future<Output = ()>,
+    S: HttpService<Body>,
+    W: Watcher<I, S, E>,
+{
+    fn execute_new_svc(&mut self, fut: NewSvcTask<I, N, S, E, W>) {
         self.execute(fut)
     }
 }
