@@ -181,7 +181,15 @@ pub(crate) fn choose_ciphersuite_preferring_client(
     client_suites: &[CipherSuite],
     server_suites: &[SupportedCipherSuite],
 ) -> Option<SupportedCipherSuite> {
-    for client_suite in client_suites {
+    let unimplemented_cipher_suite: Vec<_> = UNIMPLEMENTED_CIPHER_SUTIES
+        .iter()
+        .map(|c| c.suite())
+        .collect();
+
+    for client_suite in client_suites
+        .iter()
+        .filter(|c| !unimplemented_cipher_suite.contains(c))
+    {
         if let Some(selected) = server_suites
             .iter()
             .find(|x| *client_suite == x.suite())
