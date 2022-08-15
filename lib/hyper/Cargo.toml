@@ -120,14 +120,6 @@ rustdoc-args = ["--cfg", "docsrs", "--cfg", "hyper_unstable_ffi"]
 [package.metadata.playground]
 features = ["full"]
 
-[profile.release]
-codegen-units = 1
-incremental = false
-
-[profile.bench]
-codegen-units = 1
-incremental = false
-
 [[example]]
 name = "client"
 path = "examples/client.rs"

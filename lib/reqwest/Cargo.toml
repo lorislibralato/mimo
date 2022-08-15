@@ -109,7 +109,7 @@ ipnet = "2.3"
 # Optional deps...
 
 ## default-tls
-hyper-tls = { version = "0.5", optional = true }
+hyper-tls = { version = "0.5", path = "../hyper-tls", optional = true }
 native-tls-crate = { version = "0.2.8", optional = true, package = "native-tls" }
 tokio-native-tls = { version = "0.3.0", optional = true }
 

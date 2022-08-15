@@ -3,6 +3,25 @@ name = "mimo"
 version = "0.1.0"
 edition = "2021"
 
+[workspace]
+members = [
+    "lib/*"
+]
+exclude = [
+    "lib/h2",
+    "lib/rustls",
+    "lib/tls"
+]
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+hyper = { path = "lib/hyper" }
+
+[profile.release]
+codegen-units = 1
+incremental = false
+
+[profile.bench]
+codegen-units = 1
+incremental = false
