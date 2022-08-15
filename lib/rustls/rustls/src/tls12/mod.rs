@@ -120,6 +120,119 @@ pub static TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384: SupportedCipherSuite =
         hmac_algorithm: ring::hmac::HMAC_SHA384,
     });
 
+// ---- START CUSTOM
+/// The TLS1.2 ciphersuite TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
+#[cfg(feature = "tls12")]
+pub static TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA: SupportedCipherSuite =
+    SupportedCipherSuite::Tls12(&Tls12CipherSuite {
+        common: CipherSuiteCommon {
+            suite: CipherSuite::TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+            bulk: BulkAlgorithm::Aes128Gcm,
+            aead_algorithm: &ring::aead::AES_128_GCM,
+        },
+        kx: KeyExchangeAlgorithm::ECDHE,
+        sign: TLS12_ECDSA_SCHEMES,
+        fixed_iv_len: 4,
+        explicit_nonce_len: 8,
+        aead_alg: &AesGcm,
+        hmac_algorithm: ring::hmac::HMAC_SHA384,
+    });
+
+/// The TLS1.2 ciphersuite TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
+#[cfg(feature = "tls12")]
+pub static TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA: SupportedCipherSuite =
+    SupportedCipherSuite::Tls12(&Tls12CipherSuite {
+        common: CipherSuiteCommon {
+            suite: CipherSuite::TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+            bulk: BulkAlgorithm::Aes128Gcm,
+            aead_algorithm: &ring::aead::AES_128_GCM,
+        },
+        kx: KeyExchangeAlgorithm::ECDHE,
+        sign: TLS12_ECDSA_SCHEMES,
+        fixed_iv_len: 4,
+        explicit_nonce_len: 8,
+        aead_alg: &AesGcm,
+        hmac_algorithm: ring::hmac::HMAC_SHA384,
+    });
+
+/// The TLS1.2 ciphersuite TLS_RSA_WITH_AES_128_GCM_SHA256
+#[cfg(feature = "tls12")]
+pub static TLS_RSA_WITH_AES_128_GCM_SHA256: SupportedCipherSuite =
+    SupportedCipherSuite::Tls12(&Tls12CipherSuite {
+        common: CipherSuiteCommon {
+            suite: CipherSuite::TLS_RSA_WITH_AES_128_GCM_SHA256,
+            bulk: BulkAlgorithm::Aes128Gcm,
+            aead_algorithm: &ring::aead::AES_128_GCM,
+        },
+        kx: KeyExchangeAlgorithm::RSA,
+        sign: TLS12_RSA_SCHEMES,
+        fixed_iv_len: 4,
+        explicit_nonce_len: 8,
+        aead_alg: &AesGcm,
+        hmac_algorithm: ring::hmac::HMAC_SHA384,
+    });
+
+/// The TLS1.2 ciphersuite TLS_RSA_WITH_AES_256_GCM_SHA384
+#[cfg(feature = "tls12")]
+pub static TLS_RSA_WITH_AES_256_GCM_SHA384: SupportedCipherSuite =
+    SupportedCipherSuite::Tls12(&Tls12CipherSuite {
+        common: CipherSuiteCommon {
+            suite: CipherSuite::TLS_RSA_WITH_AES_256_GCM_SHA384,
+            bulk: BulkAlgorithm::Aes256Gcm,
+            aead_algorithm: &ring::aead::AES_256_GCM,
+        },
+        kx: KeyExchangeAlgorithm::RSA,
+        sign: TLS12_RSA_SCHEMES,
+        fixed_iv_len: 4,
+        explicit_nonce_len: 8,
+        aead_alg: &AesGcm,
+        hmac_algorithm: ring::hmac::HMAC_SHA384,
+    });
+
+/// The TLS1.2 ciphersuite TLS_RSA_WITH_AES_128_CBC_SHA
+#[cfg(feature = "tls12")]
+pub static TLS_RSA_WITH_AES_128_CBC_SHA: SupportedCipherSuite =
+    SupportedCipherSuite::Tls12(&Tls12CipherSuite {
+        common: CipherSuiteCommon {
+            suite: CipherSuite::TLS_RSA_WITH_AES_128_CBC_SHA,
+            bulk: BulkAlgorithm::Aes128Gcm,
+            aead_algorithm: &ring::aead::AES_128_GCM,
+        },
+        kx: KeyExchangeAlgorithm::RSA,
+        sign: TLS12_RSA_SCHEMES,
+        fixed_iv_len: 4,
+        explicit_nonce_len: 8,
+        aead_alg: &AesGcm,
+        hmac_algorithm: ring::hmac::HMAC_SHA1_FOR_LEGACY_USE_ONLY,
+    });
+
+/// The TLS1.2 ciphersuite TLS_RSA_WITH_AES_256_CBC_SHA
+#[cfg(feature = "tls12")]
+pub static TLS_RSA_WITH_AES_256_CBC_SHA: SupportedCipherSuite =
+    SupportedCipherSuite::Tls12(&Tls12CipherSuite {
+        common: CipherSuiteCommon {
+            suite: CipherSuite::TLS_RSA_WITH_AES_256_CBC_SHA,
+            bulk: BulkAlgorithm::Aes128Gcm,
+            aead_algorithm: &ring::aead::AES_128_GCM,
+        },
+        kx: KeyExchangeAlgorithm::RSA,
+        sign: TLS12_RSA_SCHEMES,
+        fixed_iv_len: 4,
+        explicit_nonce_len: 8,
+        aead_alg: &AesGcm,
+        hmac_algorithm: ring::hmac::HMAC_SHA384,
+    });
+
+// cipher_suite::TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+// cipher_suite::TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+// cipher_suite::TLS_RSA_WITH_AES_128_GCM_SHA256,
+// cipher_suite::TLS_RSA_WITH_AES_256_GCM_SHA384,
+// cipher_suite::TLS_RSA_WITH_AES_128_CBC_SHA,
+// cipher_suite::TLS_RSA_WITH_AES_256_CBC_SHA
+
+// ---- END CUSTOM
+
+
 #[cfg(feature = "tls12")]
 static TLS12_ECDSA_SCHEMES: &[SignatureScheme] = &[
     SignatureScheme::ED25519,

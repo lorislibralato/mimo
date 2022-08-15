@@ -473,6 +473,30 @@ pub mod cipher_suite {
     pub use crate::tls13::TLS13_AES_128_GCM_SHA256;
     pub use crate::tls13::TLS13_AES_256_GCM_SHA384;
     pub use crate::tls13::TLS13_CHACHA20_POLY1305_SHA256;
+
+     // START CUSTOM
+     #[cfg(feature = "tls12")]
+     pub use crate::tls12::TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA;
+     #[cfg(feature = "tls12")]
+     pub use crate::tls12::TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA;
+     #[cfg(feature = "tls12")]
+     pub use crate::tls12::TLS_RSA_WITH_AES_128_CBC_SHA;
+     #[cfg(feature = "tls12")]
+     pub use crate::tls12::TLS_RSA_WITH_AES_128_GCM_SHA256;
+     #[cfg(feature = "tls12")]
+     pub use crate::tls12::TLS_RSA_WITH_AES_256_CBC_SHA;
+     #[cfg(feature = "tls12")]
+     pub use crate::tls12::TLS_RSA_WITH_AES_256_GCM_SHA384;
+     // END CUSTOM
+ 
+     // cipher_suite::TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+     // cipher_suite::TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+     // cipher_suite::TLS_RSA_WITH_AES_128_GCM_SHA256,
+     // cipher_suite::TLS_RSA_WITH_AES_256_GCM_SHA384,
+     // cipher_suite::TLS_RSA_WITH_AES_128_CBC_SHA,
+     // cipher_suite::TLS_RSA_WITH_AES_256_CBC_SHA
+ 
+ 
 }
 
 /// All defined protocol versions appear in this module.

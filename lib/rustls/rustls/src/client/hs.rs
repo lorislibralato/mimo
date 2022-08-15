@@ -176,6 +176,53 @@ struct ExpectServerHelloOrHelloRetryRequest {
     extra_exts: Vec<ClientExtension>,
 }
 
+static ORDER_EXT_TYPE: [ExtensionType; 16] = [
+    ExtensionType::ServerName,
+    ExtensionType::ExtendedMasterSecret,
+    ExtensionType::RenegotiationInfo,
+    ExtensionType::EllipticCurves,
+    ExtensionType::ECPointFormats,
+    ExtensionType::SessionTicket,
+    ExtensionType::ALProtocolNegotiation,
+    ExtensionType::StatusRequest,
+    ExtensionType::SignatureAlgorithms,
+    ExtensionType::SCT,
+    ExtensionType::KeyShare,
+    ExtensionType::PSKKeyExchangeModes,
+    ExtensionType::SupportedVersions,
+    ExtensionType::Unknown(27),
+    ExtensionType::Unknown(17513),
+    ExtensionType::Padding,
+];
+
+// CUSTOM ANTI FINGERPRINT EXTENSION ORDER
+fn anti_fp_ext_order(exts: Vec<ClientExtension>) -> Vec<ClientExtension> {
+    let mut ord_exts = Vec::with_capacity(exts.len());
+    let mut i = 0;
+    loop {
+        if i == ORDER_EXT_TYPE.len() {
+            ord_exts.extend(
+                exts.clone()
+                    .into_iter()
+                    .filter(|ext| !ORDER_EXT_TYPE.contains(&(ext.get_type()))),
+            );
+            break;
+        }
+
+        for ext in &exts {
+            if ext.get_type() == ORDER_EXT_TYPE[i] {
+                ord_exts.push(ext.clone());
+                break;
+            }
+        }
+        i += 1;
+    }
+
+    assert_eq!(exts.len(), ord_exts.len());
+
+    ord_exts
+}
+
 fn emit_client_hello_for_retry(
     config: Arc<ClientConfig>,
     cx: &mut ClientContext<'_>,
@@ -322,6 +369,9 @@ fn emit_client_hello_for_retry(
         None
     };
 
+    // custom order for extensions
+    exts = anti_fp_ext_order(exts);
+
     // Note what extensions we sent.
     hello.sent_extensions = exts
         .iter()
@@ -329,13 +379,14 @@ fn emit_client_hello_for_retry(
         .collect();
 
     let session_id = session_id.unwrap_or_else(SessionID::empty);
-    let mut cipher_suites: Vec<_> = config
+    let cipher_suites: Vec<_> = config
         .cipher_suites
         .iter()
         .map(|cs| cs.suite())
         .collect();
     // We don't do renegotiation at all, in fact.
-    cipher_suites.push(CipherSuite::TLS_EMPTY_RENEGOTIATION_INFO_SCSV);
+    // commented for fingerprint purpose
+    // cipher_suites.push(CipherSuite::TLS_EMPTY_RENEGOTIATION_INFO_SCSV);
 
     let mut chp = HandshakeMessagePayload {
         typ: HandshakeType::ClientHello,

@@ -449,7 +449,7 @@ impl ClientConnection {
     fn new_inner(
         config: Arc<ClientConfig>,
         name: ServerName,
-        extra_exts: Vec<ClientExtension>,
+        mut extra_exts: Vec<ClientExtension>,
         proto: Protocol,
     ) -> Result<Self, Error> {
         let mut common_state = CommonState::new(Side::Client);
@@ -461,6 +461,24 @@ impl ClientConnection {
             common: &mut common_state,
             data: &mut data,
         };
+
+        // CUSTOM
+        /*
+            extensionRenegotiationInfo
+            compress_certificate
+            extensionApplicationSettings
+            padding
+        */
+        use crate::msgs::{handshake::UnknownExtension, enums::ExtensionType, base::Payload};
+
+        extra_exts.extend([
+            ClientExtension::Unknown(UnknownExtension { typ: ExtensionType::RenegotiationInfo, payload: Payload::new([0x00]) }),
+            // compress_certificate
+            ClientExtension::Unknown(UnknownExtension { typ: ExtensionType::Unknown(27), payload: Payload::new([0x02, 0x00, 0x02])}),
+            // extensionApplicationSettings
+            ClientExtension::Unknown(UnknownExtension { typ: ExtensionType::Unknown(17513), payload: Payload::empty()}),
+            ClientExtension::Unknown(UnknownExtension { typ: ExtensionType::Padding, payload: Payload::empty()}),
+        ]);
 
         let state = hs::start_handshake(name, extra_exts, config, &mut cx)?;
         let inner = ConnectionCommon::new(state, data, common_state);
