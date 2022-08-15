@@ -10,7 +10,8 @@ members = [
 exclude = [
     "lib/h2",
     "lib/rustls",
-    "lib/tls"
+    "lib/tls",
+    "lib/hyper"
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

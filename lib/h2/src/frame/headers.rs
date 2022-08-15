@@ -111,25 +111,29 @@ const ALL: u8 = END_STREAM | END_HEADERS | PADDED | PRIORITY;
 impl Headers {
     /// Create a new HEADERS frame
     pub fn new(stream_id: StreamId, pseudo: Pseudo, fields: HeaderMap) -> Self {
+        let mut flags = HeadersFlag::default();
+        flags.set_priority();
+
         Headers {
             stream_id,
-            stream_dep: None,
+            stream_dep: Some(StreamDependency::new(StreamId::zero(), 255, true)),
             header_block: HeaderBlock {
                 fields,
                 is_over_size: false,
                 pseudo,
             },
-            flags: HeadersFlag::default(),
+            flags: flags,
         }
     }
 
     pub fn trailers(stream_id: StreamId, fields: HeaderMap) -> Self {
         let mut flags = HeadersFlag::default();
         flags.set_end_stream();
+        flags.set_priority();
 
         Headers {
             stream_id,
-            stream_dep: None,
+            stream_dep: Some(StreamDependency::new(StreamId::zero(), 255, true)),
             header_block: HeaderBlock {
                 fields,
                 is_over_size: false,
@@ -271,9 +275,22 @@ impl Headers {
         // Get the HEADERS frame head
         let head = self.head();
 
-        self.header_block
-            .into_encoding(encoder)
-            .encode(&head, dst, |_| {})
+        match self.stream_dep {
+            Some(dep) => self
+                .header_block
+                .into_encoding(encoder)
+                .encode(&head, dst, |dst| {
+                    let deps_id: u32 = dep.dependency_id().into();
+                    let deps_excl = (dep.is_exclusive() as u32) << 31;
+
+                    dst.put_u32(deps_id | deps_excl);
+                    dst.put_u8(dep.weight());
+                }),
+            None => self
+                .header_block
+                .into_encoding(encoder)
+                .encode(&head, dst, |_| {}),
+        }
     }
 
     fn head(&self) -> Head {
@@ -686,12 +703,12 @@ impl Iterator for Iter {
                 return Some(Method(method));
             }
 
-            if let Some(scheme) = pseudo.scheme.take() {
-                return Some(Scheme(scheme));
-            }
-
             if let Some(authority) = pseudo.authority.take() {
                 return Some(Authority(authority));
+            }
+
+            if let Some(scheme) = pseudo.scheme.take() {
+                return Some(Scheme(scheme));
             }
 
             if let Some(path) = pseudo.path.take() {
@@ -748,6 +765,10 @@ impl HeadersFlag {
 
     pub fn is_priority(&self) -> bool {
         self.0 & PRIORITY == PRIORITY
+    }
+
+    pub fn set_priority(&mut self) {
+        self.0 |= PRIORITY;
     }
 }
 

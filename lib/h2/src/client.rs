@@ -785,6 +785,12 @@ impl Builder {
         self
     }
 
+    ///
+    pub fn header_table_size(&mut self, max: u32) -> &mut Self {
+        self.settings.set_header_table_size(Some(max));
+        self
+    }
+
     /// Sets the maximum number of concurrent streams.
     ///
     /// The maximum concurrent streams setting only controls the maximum number
