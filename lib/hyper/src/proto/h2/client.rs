@@ -53,6 +53,11 @@ pub(crate) struct Config {
     pub(crate) keep_alive_while_idle: bool,
     pub(crate) max_concurrent_reset_streams: Option<usize>,
     pub(crate) max_send_buffer_size: usize,
+
+    // custom
+    pub(crate) max_header_list_size: Option<u32>,
+    pub(crate) max_concurrent_streams: Option<u32>,
+    pub(crate) header_table_size: Option<u32>,
 }
 
 impl Default for Config {
@@ -70,6 +75,10 @@ impl Default for Config {
             keep_alive_while_idle: false,
             max_concurrent_reset_streams: None,
             max_send_buffer_size: DEFAULT_MAX_SEND_BUF_SIZE,
+            
+            max_header_list_size: None,
+            max_concurrent_streams: None,
+            header_table_size: None,
         }
     }
 }
@@ -79,12 +88,26 @@ fn new_builder(config: &Config) -> Builder {
     builder
         .initial_window_size(config.initial_stream_window_size)
         .initial_connection_window_size(config.initial_conn_window_size)
-        .max_frame_size(config.max_frame_size)
-        .max_send_buffer_size(config.max_send_buffer_size)
-        .enable_push(false);
+        // .max_frame_size(config.max_frame_size)
+        // .max_send_buffer_size(config.max_send_buffer_size)
+        // .enable_push(false)
+        ;
     if let Some(max) = config.max_concurrent_reset_streams {
         builder.max_concurrent_reset_streams(max);
     }
+
+    if let Some(max) = config.max_header_list_size {
+        builder.max_header_list_size(max);
+    }
+
+    if let Some(max) = config.max_concurrent_streams {
+        builder.max_concurrent_streams(max);
+    }
+
+    if let Some(max) = config.header_table_size {
+        builder.header_table_size(max);
+    }
+
     builder
 }
 

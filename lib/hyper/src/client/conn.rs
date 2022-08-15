@@ -916,6 +916,30 @@ impl Builder {
         self
     }
 
+    ///
+    #[cfg(feature = "http2")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "http2")))]
+    pub fn http2_max_header_list_size(&mut self, max: u32) -> &mut Self {
+        self.h2_builder.max_header_list_size = Some(max);
+        self
+    }
+
+    ///
+    #[cfg(feature = "http2")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "http2")))]
+    pub fn http2_header_table_size(&mut self, max: u32) -> &mut Self {
+        self.h2_builder.header_table_size = Some(max);
+        self
+    }
+
+    ///
+    #[cfg(feature = "http2")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "http2")))]
+    pub fn http2_max_concurrent_streams(&mut self, max: u32) -> &mut Self {
+        self.h2_builder.max_concurrent_streams = Some(max);
+        self
+    }
+
     /// Set the maximum write buffer size for each HTTP/2 stream.
     ///
     /// Default is currently 1MB, but may change.
