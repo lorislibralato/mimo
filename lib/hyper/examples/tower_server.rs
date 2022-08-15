@@ -1,13 +1,10 @@
 #![deny(warnings)]
 
-use std::net::SocketAddr;
 use std::task::{Context, Poll};
 
 use futures_util::future;
-use hyper::server::conn::Http;
 use hyper::service::Service;
-use hyper::{Body, Request, Response};
-use tokio::net::TcpListener;
+use hyper::{Body, Request, Response, Server};
 
 const ROOT: &str = "/";
 
@@ -39,22 +36,33 @@ impl Service<Request<Body>> for Svc {
     }
 }
 
+pub struct MakeSvc;
+
+impl<T> Service<T> for MakeSvc {
+    type Response = Svc;
+    type Error = std::io::Error;
+    type Future = future::Ready<Result<Self::Response, Self::Error>>;
+
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Ok(()).into()
+    }
+
+    fn call(&mut self, _: T) -> Self::Future {
+        future::ok(Svc)
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
 
-    let addr: SocketAddr = "127.0.0.1:1337".parse().unwrap();
+    let addr = "127.0.0.1:1337".parse().unwrap();
 
-    let listener = TcpListener::bind(addr).await?;
+    let server = Server::bind(&addr).serve(MakeSvc);
+
     println!("Listening on http://{}", addr);
 
-    loop {
-        let (stream, _) = listener.accept().await?;
+    server.await?;
 
-        tokio::task::spawn(async move {
-            if let Err(err) = Http::new().serve_connection(stream, Svc).await {
-                println!("Failed to serve connection: {:?}", err);
-            }
-        });
-    }
+    Ok(())
 }

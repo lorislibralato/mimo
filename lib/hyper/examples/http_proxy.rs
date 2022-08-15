@@ -1,14 +1,15 @@
 #![deny(warnings)]
 
+use std::convert::Infallible;
 use std::net::SocketAddr;
 
-use hyper::client::conn::Builder;
-use hyper::server::conn::Http;
-use hyper::service::service_fn;
+use hyper::service::{make_service_fn, service_fn};
 use hyper::upgrade::Upgraded;
-use hyper::{Body, Method, Request, Response};
+use hyper::{Body, Client, Method, Request, Response, Server};
 
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::TcpStream;
+
+type HttpClient = Client<hyper::client::HttpConnector>;
 
 // To try this example:
 // 1. cargo run --example http_proxy
@@ -18,29 +19,32 @@ use tokio::net::{TcpListener, TcpStream};
 // 3. send requests
 //    $ curl -i https://www.some_domain.com/
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() {
     let addr = SocketAddr::from(([127, 0, 0, 1], 8100));
 
-    let listener = TcpListener::bind(addr).await?;
+    let client = Client::builder()
+        .http1_title_case_headers(true)
+        .http1_preserve_header_case(true)
+        .build_http();
+
+    let make_service = make_service_fn(move |_| {
+        let client = client.clone();
+        async move { Ok::<_, Infallible>(service_fn(move |req| proxy(client.clone(), req))) }
+    });
+
+    let server = Server::bind(&addr)
+        .http1_preserve_header_case(true)
+        .http1_title_case_headers(true)
+        .serve(make_service);
+
     println!("Listening on http://{}", addr);
 
-    loop {
-        let (stream, _) = listener.accept().await?;
-
-        tokio::task::spawn(async move {
-            if let Err(err) = Http::new()
-                .http1_preserve_header_case(true)
-                .http1_title_case_headers(true)
-                .serve_connection(stream, service_fn(proxy))
-                .await
-            {
-                println!("Failed to serve connection: {:?}", err);
-            }
-        });
+    if let Err(e) = server.await {
+        eprintln!("server error: {}", e);
     }
 }
 
-async fn proxy(req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
+async fn proxy(client: HttpClient, req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
     println!("req: {:?}", req);
 
     if Method::CONNECT == req.method() {
@@ -78,24 +82,7 @@ async fn proxy(req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
             Ok(resp)
         }
     } else {
-        let host = req.uri().host().expect("uri has no host");
-        let port = req.uri().port_u16().unwrap_or(80);
-        let addr = format!("{}:{}", host, port);
-
-        let stream = TcpStream::connect(addr).await.unwrap();
-
-        let (mut sender, conn) = Builder::new()
-            .http1_preserve_header_case(true)
-            .http1_title_case_headers(true)
-            .handshake(stream)
-            .await?;
-        tokio::task::spawn(async move {
-            if let Err(err) = conn.await {
-                println!("Connection failed: {:?}", err);
-            }
-        });
-
-        sender.send_request(req).await
+        client.request(req).await
     }
 }
 

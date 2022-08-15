@@ -1,6 +1,7 @@
 #[cfg(feature = "http2")]
 use std::future::Future;
 
+use futures_util::FutureExt;
 use tokio::sync::{mpsc, oneshot};
 
 #[cfg(feature = "http2")]
@@ -168,7 +169,6 @@ impl<T, U> Receiver<T, U> {
 
     #[cfg(feature = "http1")]
     pub(crate) fn try_recv(&mut self) -> Option<(T, Callback<T, U>)> {
-        use futures_util::FutureExt;
         match self.inner.recv().now_or_never() {
             Some(Some(mut env)) => env.0.take(),
             _ => None,
@@ -301,7 +301,6 @@ mod tests {
         }
     }
 
-    #[cfg(not(miri))]
     #[tokio::test]
     async fn drop_receiver_sends_cancel_errors() {
         let _ = pretty_env_logger::try_init();
@@ -324,7 +323,6 @@ mod tests {
         }
     }
 
-    #[cfg(not(miri))]
     #[tokio::test]
     async fn sender_checks_for_want_on_send() {
         let (mut tx, mut rx) = channel::<Custom, ()>();
@@ -365,6 +363,7 @@ mod tests {
         use crate::{Body, Request, Response};
 
         let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
             .build()
             .unwrap();
         let (mut tx, mut rx) = channel::<Request<Body>, Response<Body>>();
@@ -387,6 +386,7 @@ mod tests {
     #[bench]
     fn giver_queue_not_ready(b: &mut test::Bencher) {
         let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
             .build()
             .unwrap();
         let (_tx, mut rx) = channel::<i32, ()>();

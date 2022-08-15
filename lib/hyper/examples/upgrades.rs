@@ -3,15 +3,13 @@
 // Note: `hyper::upgrade` docs link to this upgrade.
 use std::str;
 
-use hyper::server::conn::Http;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::watch;
+use tokio::sync::oneshot;
 
 use hyper::header::{HeaderValue, UPGRADE};
-use hyper::service::service_fn;
+use hyper::service::{make_service_fn, service_fn};
 use hyper::upgrade::Upgraded;
-use hyper::{Body, Request, Response, StatusCode};
+use hyper::{Body, Client, Request, Response, Server, StatusCode};
 use std::net::SocketAddr;
 
 // A simple type alias so as to DRY.
@@ -94,17 +92,7 @@ async fn client_upgrade_request(addr: SocketAddr) -> Result<()> {
         .body(Body::empty())
         .unwrap();
 
-    let stream = TcpStream::connect(addr).await?;
-    let (mut sender, conn) = hyper::client::conn::handshake(stream).await?;
-
-    tokio::task::spawn(async move {
-        if let Err(err) = conn.await {
-            println!("Connection failed: {:?}", err);
-        }
-    });
-
-    let res = sender.send_request(req).await?;
-
+    let res = Client::new().request(req).await?;
     if res.status() != StatusCode::SWITCHING_PROTOCOLS {
         panic!("Our server didn't upgrade: {}", res.status());
     }
@@ -126,52 +114,28 @@ async fn main() {
     // For this example, we just make a server and our own client to talk to
     // it, so the exact port isn't important. Instead, let the OS give us an
     // unused port.
-    let addr: SocketAddr = ([127, 0, 0, 1], 0).into();
+    let addr = ([127, 0, 0, 1], 0).into();
 
-    let listener = TcpListener::bind(addr).await.expect("failed to bind");
+    let make_service =
+        make_service_fn(|_| async { Ok::<_, hyper::Error>(service_fn(server_upgrade)) });
+
+    let server = Server::bind(&addr).serve(make_service);
 
     // We need the assigned address for the client to send it messages.
-    let addr = listener.local_addr().unwrap();
+    let addr = server.local_addr();
 
     // For this example, a oneshot is used to signal that after 1 request,
     // the server should be shutdown.
-    let (tx, mut rx) = watch::channel(false);
+    let (tx, rx) = oneshot::channel::<()>();
+    let server = server.with_graceful_shutdown(async move {
+        rx.await.ok();
+    });
 
     // Spawn server on the default executor,
     // which is usually a thread-pool from tokio default runtime.
     tokio::task::spawn(async move {
-        loop {
-            tokio::select! {
-                res = listener.accept() => {
-                    let (stream, _) = res.expect("Failed to accept");
-
-                    let mut rx = rx.clone();
-                    tokio::task::spawn(async move {
-                        let conn = Http::new().serve_connection(stream, service_fn(server_upgrade));
-
-                        // Don't forget to enable upgrades on the connection.
-                        let mut conn = conn.with_upgrades();
-
-                        let mut conn = Pin::new(&mut conn);
-
-                        tokio::select! {
-                            res = &mut conn => {
-                                if let Err(err) = res {
-                                    println!("Error serving connection: {:?}", err);
-                                    return;
-                                }
-                            }
-                            // Continue polling the connection after enabling graceful shutdown.
-                            _ = rx.changed() => {
-                                conn.graceful_shutdown();
-                            }
-                        }
-                    });
-                }
-                _ = rx.changed() => {
-                    break;
-                }
-            }
+        if let Err(e) = server.await {
+            eprintln!("server error: {}", e);
         }
     });
 
@@ -183,5 +147,5 @@ async fn main() {
 
     // Complete the oneshot so that the server stops
     // listening and the process can close down.
-    let _ = tx.send(true);
+    let _ = tx.send(());
 }

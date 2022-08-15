@@ -40,11 +40,15 @@ pub(super) enum Kind {
     /// Error creating a TcpListener.
     #[cfg(all(feature = "tcp", feature = "server"))]
     Listen,
+    /// Error accepting on an Incoming stream.
+    #[cfg(any(feature = "http1", feature = "http2"))]
+    #[cfg(feature = "server")]
+    Accept,
     /// User took too long to send headers
     #[cfg(all(feature = "http1", feature = "server", feature = "runtime"))]
     HeaderTimeout,
     /// Error while reading a body from connection.
-    #[cfg(any(feature = "http1", feature = "http2"))]
+    #[cfg(any(feature = "http1", feature = "http2", feature = "stream"))]
     Body,
     /// Error while writing a body to connection.
     #[cfg(any(feature = "http1", feature = "http2"))]
@@ -92,6 +96,10 @@ pub(super) enum User {
     Body,
     /// The user aborted writing of the outgoing body.
     BodyWriteAborted,
+    /// Error calling user's MakeService.
+    #[cfg(any(feature = "http1", feature = "http2"))]
+    #[cfg(feature = "server")]
+    MakeService,
     /// Error from future of user's Service.
     #[cfg(any(feature = "http1", feature = "http2"))]
     Service,
@@ -271,6 +279,12 @@ impl Error {
     }
 
     #[cfg(any(feature = "http1", feature = "http2"))]
+    #[cfg(feature = "server")]
+    pub(super) fn new_accept<E: Into<Cause>>(cause: E) -> Error {
+        Error::new(Kind::Accept).with(cause)
+    }
+
+    #[cfg(any(feature = "http1", feature = "http2"))]
     #[cfg(feature = "client")]
     pub(super) fn new_connect<E: Into<Cause>>(cause: E) -> Error {
         Error::new(Kind::Connect).with(cause)
@@ -280,7 +294,7 @@ impl Error {
         Error::new(Kind::ChannelClosed)
     }
 
-    #[cfg(any(feature = "http1", feature = "http2"))]
+    #[cfg(any(feature = "http1", feature = "http2", feature = "stream"))]
     pub(super) fn new_body<E: Into<Cause>>(cause: E) -> Error {
         Error::new(Kind::Body).with(cause)
     }
@@ -340,6 +354,12 @@ impl Error {
     #[cfg(feature = "http1")]
     pub(super) fn new_user_manual_upgrade() -> Error {
         Error::new_user(User::ManualUpgrade)
+    }
+
+    #[cfg(any(feature = "http1", feature = "http2"))]
+    #[cfg(feature = "server")]
+    pub(super) fn new_user_make_service<E: Into<Cause>>(cause: E) -> Error {
+        Error::new_user(User::MakeService).with(cause)
     }
 
     #[cfg(any(feature = "http1", feature = "http2"))]
@@ -415,9 +435,12 @@ impl Error {
             Kind::Canceled => "operation was canceled",
             #[cfg(all(feature = "server", feature = "tcp"))]
             Kind::Listen => "error creating server listener",
+            #[cfg(any(feature = "http1", feature = "http2"))]
+            #[cfg(feature = "server")]
+            Kind::Accept => "error accepting connection",
             #[cfg(all(feature = "http1", feature = "server", feature = "runtime"))]
             Kind::HeaderTimeout => "read header from client timeout",
-            #[cfg(any(feature = "http1", feature = "http2"))]
+            #[cfg(any(feature = "http1", feature = "http2", feature = "stream"))]
             Kind::Body => "error reading a body from connection",
             #[cfg(any(feature = "http1", feature = "http2"))]
             Kind::BodyWrite => "error writing a body to connection",
@@ -431,6 +454,9 @@ impl Error {
             #[cfg(any(feature = "http1", feature = "http2"))]
             Kind::User(User::Body) => "error from user's HttpBody stream",
             Kind::User(User::BodyWriteAborted) => "user body write aborted",
+            #[cfg(any(feature = "http1", feature = "http2"))]
+            #[cfg(feature = "server")]
+            Kind::User(User::MakeService) => "error from user's MakeService",
             #[cfg(any(feature = "http1", feature = "http2"))]
             Kind::User(User::Service) => "error from user's Service",
             #[cfg(any(feature = "http1", feature = "http2"))]

@@ -1,11 +1,8 @@
 #![deny(warnings)]
 
-use std::net::SocketAddr;
-
-use hyper::server::conn::Http;
-use hyper::service::service_fn;
-use hyper::{Body, Method, Request, Response, StatusCode};
-use tokio::net::TcpListener;
+use futures_util::TryStreamExt;
+use hyper::service::{make_service_fn, service_fn};
+use hyper::{Body, Method, Request, Response, Server, StatusCode};
 
 /// This is our service handler. It receives a Request, routes on its
 /// path, and returns a Future of a Response.
@@ -19,17 +16,16 @@ async fn echo(req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
         // Simply echo the body back to the client.
         (&Method::POST, "/echo") => Ok(Response::new(req.into_body())),
 
-        // TODO: Fix this, broken in PR #2896
         // Convert to uppercase before sending back to client using a stream.
-        // (&Method::POST, "/echo/uppercase") => {
-        // let chunk_stream = req.into_body().map_ok(|chunk| {
-        //     chunk
-        //         .iter()
-        //         .map(|byte| byte.to_ascii_uppercase())
-        //         .collect::<Vec<u8>>()
-        // });
-        // Ok(Response::new(Body::wrap_stream(chunk_stream)))
-        // }
+        (&Method::POST, "/echo/uppercase") => {
+            let chunk_stream = req.into_body().map_ok(|chunk| {
+                chunk
+                    .iter()
+                    .map(|byte| byte.to_ascii_uppercase())
+                    .collect::<Vec<u8>>()
+            });
+            Ok(Response::new(Body::wrap_stream(chunk_stream)))
+        }
 
         // Reverse the entire body before sending back to the client.
         //
@@ -55,17 +51,15 @@ async fn echo(req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = ([127, 0, 0, 1], 3000).into();
 
-    let listener = TcpListener::bind(addr).await?;
+    let service = make_service_fn(|_| async { Ok::<_, hyper::Error>(service_fn(echo)) });
+
+    let server = Server::bind(&addr).serve(service);
+
     println!("Listening on http://{}", addr);
-    loop {
-        let (stream, _) = listener.accept().await?;
 
-        tokio::task::spawn(async move {
-            if let Err(err) = Http::new().serve_connection(stream, service_fn(echo)).await {
-                println!("Error serving connection: {:?}", err);
-            }
-        });
-    }
+    server.await?;
+
+    Ok(())
 }

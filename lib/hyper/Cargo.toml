@@ -1,6 +1,6 @@
 [package]
 name = "hyper"
-version = "1.0.0-dev.0"
+version = "0.14.20"
 description = "A fast and correct HTTP library."
 readme = "README.md"
 homepage = "https://hyper.rs"
@@ -11,8 +11,6 @@ authors = ["Sean McArthur <sean@seanmonstar.com>"]
 keywords = ["http", "hyper", "hyperium"]
 categories = ["network-programming", "web-programming::http-client", "web-programming::http-server"]
 edition = "2018"
-
-publish = false # no accidents while in dev
 
 include = [
   "Cargo.toml",
@@ -27,8 +25,7 @@ futures-core = { version = "0.3", default-features = false }
 futures-channel = "0.3"
 futures-util = { version = "0.3", default-features = false }
 http = "0.2"
-http-body = { git = "https://github.com/hyperium/http-body", branch = "master" }
-http-body-util = { git = "https://github.com/hyperium/http-body", branch = "master" }
+http-body = "0.4"
 httpdate = "1.0"
 httparse = "1.6"
 h2 = { version = "0.3.9", optional = true }
@@ -81,6 +78,7 @@ full = [
     "http1",
     "http2",
     "server",
+    "stream",
     "runtime",
 ]
 
@@ -92,8 +90,17 @@ http2 = ["h2"]
 client = []
 server = []
 
+# `impl Stream` for things
+stream = []
+
 # Tokio support
 runtime = [
+    "tcp",
+    "tokio/rt",
+    "tokio/time",
+]
+tcp = [
+    "socket2",
     "tokio/net",
     "tokio/rt",
     "tokio/time",
@@ -179,6 +186,11 @@ required-features = ["full"]
 [[example]]
 name = "state"
 path = "examples/state.rs"
+required-features = ["full"]
+
+[[example]]
+name = "tower_client"
+path = "examples/tower_client.rs"
 required-features = ["full"]
 
 [[example]]
